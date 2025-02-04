@@ -1,0 +1,10 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Змінні середовища
+#define WIFI_SSID "SSID"
+#define WIFI_PASSWORD "WIFI_PASSWORD"
+#define API_URL "https://api.ukrainealarm.com/api/v3/alerts/1396" // 1396 - Ukraine Starokostyantyniv
+#define API_KEY "YOUR_API_KEY"
+
+#endif // CONFIG_H
