@@ -44,38 +44,36 @@ void AlertLogic::processAlert() {
 }
 
 void AlertLogic::Tick() {
-    // Перевіряємо статус підключення до Wi-Fi
+    unsigned long currentMillis = millis();
+
+    // Перевіряємо підключення до Wi-Fi
     if (WiFi.status() != WL_CONNECTED) {
-        // Якщо Wi-Fi не підключений, спробуємо перепідключитися
         WiFi.reconnect();
-        // Включаємо червоний LED для індикації втрати з'єднання
         digitalWrite(PIN_LED_GREEN, LOW);   // Вимикаємо зелений LED
-        digitalWrite(PIN_LED_RED, HIGH);    // Включаємо червоний LED (помилка)
-    } else {
-        // Якщо з'єднання відновлено, вимикаємо червоний LED
-        digitalWrite(PIN_LED_RED, LOW);     // Вимикаємо червоний LED
-        digitalWrite(PIN_LED_GREEN, HIGH);  // Включаємо зелений LED
+        digitalWrite(PIN_LED_RED, HIGH);    // Червоний LED горить постійно при втраті Wi-Fi
+        return; // Виходимо, далі немає сенсу перевіряти сервер
     }
 
-    // Оновлюємо час і перевіряємо NTP
-    if (whNTP->Update()) {
-        digitalWrite(PIN_LED_GREEN, LOW);   // Вимикаємо зелений LED (немає синхронізації)
-        digitalWrite(PIN_LED_RED, LOW);     // Вимикаємо червоний LED (немає синхронізації)
-    }
+    // Перевіряємо зв’язок із сервером кожні LOGIC_DELAY мс
+    if ((currentMillis - lastTime) > LOGIC_DELAY) {
+        lastTime = currentMillis;
+        int result = alertAPI.IsAlert();
 
-    // Перевіряємо, чи з'єднання з сервером доступне
-    if (whNTP->IsOperational() && (millis() - lastTime) > LOGIC_DELAY) {
-        lastTime = millis();
-        if (WiFi.status() == WL_CONNECTED) {
-            // Якщо Wi-Fi підключений, перевіряємо API на наявність сповіщення
-            int result = alertAPI.IsAlert();
-            if (result < 2) SetAlert(result);
+        if (result == 2) {
+            // Сервер не відповідає → мигаємо червоним LED
+            if (currentMillis - lastLedTime >= 500) { // Мигаємо кожні 500 мс
+                lastLedTime = currentMillis;
+                digitalWrite(PIN_LED_RED, !digitalRead(PIN_LED_RED));
+            }
+            digitalWrite(PIN_LED_GREEN, LOW);  // Вимикаємо зелений LED
         } else {
-            // Якщо Wi-Fi не підключено, відключаємо попередження
-            SetAlert(false);
+            // Сервер відповів → оновлюємо статус тривоги
+            SetAlert(result == 1);
+            digitalWrite(PIN_LED_RED, LOW);   // Вимикаємо червоний LED
+            digitalWrite(PIN_LED_GREEN, HIGH); // Увімкнути зелений LED
         }
     }
 
-    // Оновлюємо статус LED
+    // Обробка миготіння LED для сигналу тривоги
     processAlert();
 }
