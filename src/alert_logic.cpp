@@ -44,17 +44,38 @@ void AlertLogic::processAlert() {
 }
 
 void AlertLogic::Tick() {
-    if (whNTP->Update()) {
-        digitalWrite(PIN_LED_GREEN, LOW);
-        digitalWrite(PIN_LED_RED, LOW);
+    // Перевіряємо статус підключення до Wi-Fi
+    if (WiFi.status() != WL_CONNECTED) {
+        // Якщо Wi-Fi не підключений, спробуємо перепідключитися
+        WiFi.reconnect();
+        // Включаємо червоний LED для індикації втрати з'єднання
+        digitalWrite(PIN_LED_GREEN, LOW);   // Вимикаємо зелений LED
+        digitalWrite(PIN_LED_RED, HIGH);    // Включаємо червоний LED (помилка)
+    } else {
+        // Якщо з'єднання відновлено, вимикаємо червоний LED
+        digitalWrite(PIN_LED_RED, LOW);     // Вимикаємо червоний LED
+        digitalWrite(PIN_LED_GREEN, HIGH);  // Включаємо зелений LED
     }
 
+    // Оновлюємо час і перевіряємо NTP
+    if (whNTP->Update()) {
+        digitalWrite(PIN_LED_GREEN, LOW);   // Вимикаємо зелений LED (немає синхронізації)
+        digitalWrite(PIN_LED_RED, LOW);     // Вимикаємо червоний LED (немає синхронізації)
+    }
+
+    // Перевіряємо, чи з'єднання з сервером доступне
     if (whNTP->IsOperational() && (millis() - lastTime) > LOGIC_DELAY) {
         lastTime = millis();
         if (WiFi.status() == WL_CONNECTED) {
+            // Якщо Wi-Fi підключений, перевіряємо API на наявність сповіщення
             int result = alertAPI.IsAlert();
             if (result < 2) SetAlert(result);
+        } else {
+            // Якщо Wi-Fi не підключено, відключаємо попередження
+            SetAlert(false);
         }
     }
+
+    // Оновлюємо статус LED
     processAlert();
 }
