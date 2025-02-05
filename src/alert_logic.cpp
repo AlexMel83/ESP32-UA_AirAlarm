@@ -1,61 +1,112 @@
 #include "alert_logic.h"
+#include <Arduino.h>
 
 AlertLogic::AlertLogic()
-    : music(PIN_BUZZER), alertAPI(API_URL, API_KEY),
-      leds(std::array<Led, 2>{{  // Явно створюємо std::array
-          Led(50, 3000, false, PIN_LED_GREEN),
-          Led(300, 300, false, PIN_LED_RED)
-      }}) {}
+	: alertAPI(API_URL, API_KEY){
 
-void AlertLogic::Init() {
-    pinMode(PIN_LED_GREEN, OUTPUT);
-    pinMode(PIN_LED_RED, OUTPUT);
-
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) delay(1000);
-
-    whNTP = new WhNTP();
-    whNTP->Update();
-    SetAlert(false, true);
 }
 
-void AlertLogic::SetAlert(bool alarm, bool firstTime) {
-    if (alertStatus != alarm || firstTime) {
-        alertStatus = alarm;
-        lastLedTime = millis();
-        leds[alertStatus].status = true;
-        digitalWrite(leds[alertStatus].pin, HIGH);
-        digitalWrite(leds[!alertStatus].pin, LOW);
+void AlertLogic::Init(){
+	pinMode(PIN_ALARM, OUTPUT); // Настроить пин как выход
+  digitalWrite(PIN_ALARM, LOW); // По умолчанию выключено
 
-        if (!firstTime) {
-            alarm ? music.PlayAlertOn() : music.PlayAlertOff();
-        }
-    }
+	pinMode(this->leds[0].pin, OUTPUT);
+	pinMode(this->leds[1].pin, OUTPUT);
+	digitalWrite(PIN_LED_GREEN, 1);
+	digitalWrite(PIN_LED_RED, 1);
+
+	WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+	Serial.println("Connecting WiFi");
+
+	while(WiFi.status() != WL_CONNECTED)
+		delay(1000);		
+
+	Serial.println("WiFi connected");
+	Serial.println(WiFi.localIP());
+
+	this->whNTP = new WhNTP();
+	this->whNTP->Update();
+
+	this->SetAlert(false, true);
+	digitalWrite(PIN_LED_GREEN, 0);
+	digitalWrite(PIN_LED_RED, 0);
 }
 
-void AlertLogic::processAlert() {
-    auto& led = leds[alertStatus];
-    unsigned long delayTime = led.status ? led.blinkTimeOn : led.blinkTimeOff;
-    if (millis() - lastLedTime >= delayTime) {
-        lastLedTime = millis();
-        led.status = !led.status;
-        digitalWrite(led.pin, led.status);
-    }
+void AlertLogic::SetAlert(bool alarm, bool firstTime){
+	if(this->alertStatus != alarm || firstTime){
+		#ifdef DEBUG
+		char buffer[128];
+		sprintf(buffer, "processAlarm(is_alarm = %d, firstTime = %d)", alarm, firstTime);
+		Serial.println(buffer);
+		#endif
+
+		this->prevAlertStatus = this->alertStatus;
+		this->alertStatus = alarm;
+		this->lastLedTime = millis();
+		this->leds[int(this->alertStatus)].status = true;
+		digitalWrite(this->leds[int(this->alertStatus)].pin, HIGH);
+		digitalWrite(this->leds[int(!this->alertStatus)].pin, LOW);
+
+		if(!firstTime)      
+			if(alarm){
+				this->music.PlayAlertOn();
+			}else{
+				this->music.PlayAlertOff();
+			}
+	}
 }
 
-void AlertLogic::Tick() {
-    unsigned long currentMillis = millis();
+void AlertLogic::processAlert(){
+	unsigned long max_delay = leds[int(this->alertStatus)].blinkTimeDealyOff;
+	if(leds[int(this->alertStatus)].status)
+		max_delay = this->leds[int(this->alertStatus)].blinkTimeDealyOn;
 
-    // Перевіряємо підключення до Wi-Fi
-    if (WiFi.status() != WL_CONNECTED) {
+	if(millis() - this->lastLedTime >= max_delay){
+		this->lastLedTime = millis();
+		this->leds[int(this->alertStatus)].status = !leds[int(this->alertStatus)].status;
+		digitalWrite(this->leds[int(this->alertStatus)].pin, int(this->leds[int(this->alertStatus)].status));
+		#ifdef DEBUG
+		char buffer[128];
+		sprintf(buffer, "processAlarm: max_delay reset, status(%d) pin(%d) write(%d)", this->leds[int(this->alertStatus)].status, this->leds[int(this->alertStatus)].pin, int(this->leds[int(this->alertStatus)].status));
+		Serial.println(buffer);
+		#endif
+	}	
+}
+
+void AlertLogic::Tick(){
+	unsigned long currentMillis = millis();
+
+	if (WiFi.status() != WL_CONNECTED) {
         WiFi.reconnect();
         digitalWrite(PIN_LED_GREEN, LOW);   // Вимикаємо зелений LED
         digitalWrite(PIN_LED_RED, HIGH);    // Червоний LED горить постійно при втраті Wi-Fi
         return; // Виходимо, далі немає сенсу перевіряти сервер
     }
+	
+	if(this->whNTP->Update()){
+		digitalWrite(PIN_LED_GREEN, 0);
+		digitalWrite(PIN_LED_RED, 0);
+	}
 
-    // Перевіряємо зв’язок із сервером кожні LOGIC_DELAY мс
-    if ((currentMillis - lastTime) > LOGIC_DELAY) {
+	if(this->whNTP->IsOperational()){
+		if((millis() - this->lastTime) > LOGIC_DELAY) {
+			#ifdef DEBUG
+			Serial.println("Logic time");
+			#endif
+			this->lastTime = millis();
+
+			if(WiFi.status() == WL_CONNECTED){
+				int result = this->alertAPI.IsAlert();
+			  
+				if(result < 2)
+					this->SetAlert(bool(result));
+			}
+		}
+
+		this->processAlert();
+	}
+
+	if ((currentMillis - lastTime) > LOGIC_DELAY) {
         lastTime = currentMillis;
         int result = alertAPI.IsAlert();
 
@@ -73,7 +124,4 @@ void AlertLogic::Tick() {
             digitalWrite(PIN_LED_GREEN, HIGH); // Увімкнути зелений LED
         }
     }
-
-    // Обробка миготіння LED для сигналу тривоги
-    processAlert();
 }

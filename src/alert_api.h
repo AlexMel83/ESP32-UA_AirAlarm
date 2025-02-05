@@ -1,18 +1,21 @@
-#ifndef ALERT_API_H
-#define ALERT_API_H
+#ifndef AlertAPI_h
+#define AlertAPI_h
 
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <string>
+
+#define PIN_ALARM 2
 
 class AlertAPI {
 public:
-    AlertAPI(const std::string& url, const std::string& key);
-    int IsAlert();
+	AlertAPI(char* url, char *key);
 
+	int IsAlert();
+ 
 private:
-    std::string apiUrl;
-    std::string apiKey;
+	char* apiUrl;
+	char* apiKey;
+
 };
 
-#endif // ALERT_API_H
+#endif
