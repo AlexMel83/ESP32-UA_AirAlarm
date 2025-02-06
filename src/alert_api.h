@@ -15,7 +15,10 @@ public:
 private:
 	char* apiUrl;
 	char* apiKey;
-
+	int alarmStartTime;
+	bool alarmActive;
+	bool alarmCooldown;
+	unsigned long cooldownStartTime;
 };
 
 #endif
