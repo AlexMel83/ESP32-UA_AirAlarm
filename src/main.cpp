@@ -1,4 +1,5 @@
 #include "config.h" // Файл с конфигурацией
+#include "wifi_status.h" // Файл с функциями управления светодиодом
 #include <ArduinoJson.h>
 #include "SPIFFS.h"
 #include <WiFi.h>
@@ -6,6 +7,7 @@
 #include <ESP8266FtpServer.h>
 #include <HTTPClient.h>
 
+WiFiStatus wifiIndicator(12);
 
 /* Настройки IP адреса */
 IPAddress local_ip(192,168,0,111);
@@ -36,6 +38,7 @@ void setup() {
   pinMode(relay, OUTPUT);
   digitalWrite(relay, LOW);
   Serial.begin(115200);
+  wifiIndicator.begin(); // Ініціалізація діода статусу WiFi
 
   WiFi.config(local_ip, gateway, subnet, dns);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -43,10 +46,6 @@ void setup() {
   // Даем время на подключение
   unsigned long startMillis = millis();
   while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - startMillis > 10000) {  // Если прошло больше 10 секунд, прекращаем попытки
-      Serial.println("Failed to connect to WiFi");
-      return;
-    }
     delay(500);
     Serial.print(".");
   }
@@ -76,6 +75,7 @@ void setup() {
 }
 
 void loop() {
+  wifiIndicator.update();
   http.handleClient();  // Обработка входящих запросов
   ftpSrv.handleFTP();   // Обработка ftp запросов
   unsigned long currentMillis = millis();
@@ -83,7 +83,8 @@ void loop() {
     lastRequestTime = currentMillis; // Обновляем время последнего запроса
     checkAlarm(); // Запрашиваем тревогу через API
   }
-
+  bool isWiFiConnected = (WiFi.status() == WL_CONNECTED);
+  bool isRelayOn = (digitalRead(relay) == HIGH);
 }
 
 String relay_switch() {

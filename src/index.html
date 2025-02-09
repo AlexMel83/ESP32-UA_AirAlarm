@@ -11,27 +11,116 @@
         margin: 0;
         padding: 0;
       }
-      input[type="button"] {
+
+      .container {
+        margin-top: 50px;
+      }
+
+      .switch {
         position: relative;
-        top: 50%;
-        margin-top: -30px;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        border-radius: 50%;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+      }
+
+      input:checked + .slider {
+        background-color: #2196f3;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      .timer {
+        margin-top: 20px;
+        font-size: 18px;
+        color: #333;
       }
     </style>
   </head>
   <body>
     <h1>MEGATEX LLC</h1>
-    <h2>Air Alerts in UA</h2>
-    <input type="button" value="Switch Relay (on/off)" id="relay_button" />
+    <h2>Air Alerts in Starokostyantyniv UA</h2>
+
+    <div class="container">
+      <label class="switch">
+        <input type="checkbox" id="relay_switch" />
+        <span class="slider"></span>
+      </label>
+      <div class="timer" id="timer">Time since last check: 0s</div>
+    </div>
+
     <script src="scripts.js"></script>
     <script>
-      var relay_button = document
-        .getElementById("relay_button")
-        .addEventListener("click", function () {
-          var request = new XMLHttpRequest();
-          request.open("GET", "/relay_switch", false);
-          request.send();
-          // fetch("/relay_switch", { method: "GET" });
-        });
+      let relaySwitch = document.getElementById("relay_switch");
+      let timerDisplay = document.getElementById("timer");
+      let lastRequestTime = 0;
+
+      // Функция для обновления таймера
+      function updateTimer() {
+        let currentMillis = millis();
+        let elapsedTime = Math.floor((currentMillis - lastRequestTime) / 1000);
+        timerDisplay.innerHTML = "Time since last check: " + elapsedTime + "s";
+      }
+
+      // Обработчик для переключателя
+      relaySwitch.addEventListener("change", function () {
+        let relayState = relaySwitch.checked ? "1" : "0";
+        var request = new XMLHttpRequest();
+        request.open("GET", "/relay_switch?state=" + relayState, true); // передаем состояние переключателя
+        request.send();
+      });
+
+      // Функция для обновления состояния переключателя
+      function updateRelayState() {
+        var request = new XMLHttpRequest();
+        request.open("GET", "/relay_status", true);
+        request.onload = function () {
+          if (request.status == 200) {
+            let relayStatus = request.responseText;
+            relaySwitch.checked = relayStatus === "1";
+            lastRequestTime = millis(); // Обновляем время последнего запроса
+            updateTimer(); // Обновляем таймер
+          }
+        };
+        request.send();
+      }
+
+      // Инициализируем состояние реле при загрузке страницы
+      window.onload = function () {
+        updateRelayState();
+        setInterval(updateTimer, 1000); // Обновляем таймер каждую секунду
+      };
     </script>
   </body>
 </html>
