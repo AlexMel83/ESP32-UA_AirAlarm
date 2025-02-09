@@ -1,8 +1,37 @@
 <html>
   <head>
-    <title>My app</title>
+    <title>Air Alarm UA</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        text-align: center;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+      }
+      input[type="button"] {
+        position: relative;
+        top: 50%;
+        margin-top: -30px;
+      }
+    </style>
   </head>
   <body>
-    <h1>Hello, world!</h1>
+    <h1>MEGATEX LLC</h1>
+    <h2>Air Alerts in UA</h2>
+    <input type="button" value="Switch Relay (on/off)" id="relay_button" />
+    <script src="scripts.js"></script>
+    <script>
+      var relay_button = document
+        .getElementById("relay_button")
+        .addEventListener("click", function () {
+          var request = new XMLHttpRequest();
+          request.open("GET", "/relay_switch", false);
+          request.send();
+          // fetch("/relay_switch", { method: "GET" });
+        });
+    </script>
   </body>
 </html>
