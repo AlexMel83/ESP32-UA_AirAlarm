@@ -4,10 +4,10 @@
 #include <Arduino.h>
 #include "api_client.h"
 
-// Функція для перевірки статусу тривоги через API
+// Функція для перевірки статусу тривоги через API /
 AlarmStatus checkAlarmStatus() {
   HTTPClient http;
-  http.begin(API_URL_ALLAERTS);
+  http.begin(API_URL_ALLALERTS);
   http.addHeader("Authorization", API_KEY);
   int httpResponseCode = http.GET();
 

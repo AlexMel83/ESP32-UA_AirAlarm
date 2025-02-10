@@ -1,7 +1,7 @@
 <html>
   <head>
     <title>Air Alarm UA</title>
-    <link rel="stylesheet" href="styles.css" />
+    <!-- <link rel="stylesheet" href="styles.css" /> -->
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -78,17 +78,26 @@
         <span class="slider"></span>
       </label>
       <div class="timer" id="timer">Time since last check: 0s</div>
+      <div id="alarmStatus">Alarm Active: false</div>
+      <div id="alarmStartTime">Alarm Start Time: 0</div>
+      <div id="lastCycleStartTime">Last Cycle Start Time: 0</div>
+      <div id="regionNames">Region Names:</div>
     </div>
 
-    <script src="scripts.js"></script>
+    <!-- <script src="scripts.js"></script> -->
     <script>
       let relaySwitch = document.getElementById("relay_switch");
       let timerDisplay = document.getElementById("timer");
       let lastRequestTime = 0;
+      let alarmStatusDisplay = document.getElementById("alarmStatus");
+      let alarmStartTimeDisplay = document.getElementById("alarmStartTime");
+      let lastCycleStartTimeDisplay =
+        document.getElementById("lastCycleStartTime");
+      let regionNamesDisplay = document.getElementById("regionNames");
 
       // Функция для обновления таймера
       function updateTimer() {
-        let currentMillis = millis();
+        let currentMillis = Date.now();
         let elapsedTime = Math.floor((currentMillis - lastRequestTime) / 1000);
         timerDisplay.innerHTML = "Time since last check: " + elapsedTime + "s";
       }
@@ -101,17 +110,42 @@
         request.send();
       });
 
-      // Функция для обновления состояния переключателя
+      // Функция для обновления состояния переключателя и другой информации
       function updateRelayState() {
         var request = new XMLHttpRequest();
         request.open("GET", "/relay_status", true);
         request.onload = function () {
           if (request.status == 200) {
-            let relayStatus = request.responseText;
-            relaySwitch.checked = relayStatus === "1";
-            lastRequestTime = millis(); // Обновляем время последнего запроса
-            updateTimer(); // Обновляем таймер
+            try {
+              let data = JSON.parse(request.responseText);
+              relaySwitch.checked = data.relayStatus === "1";
+              lastRequestTime = Date.now(); // Обновляем время последнего запроса
+              updateTimer(); // Обновляем таймер
+
+              // Обновляем статус тревоги
+              alarmStatusDisplay.innerHTML =
+                "Alarm Active: " + data.alarmActive;
+              alarmStartTimeDisplay.innerHTML =
+                "Alarm Start Time: " + data.alarmStartTime;
+              lastCycleStartTimeDisplay.innerHTML =
+                "Last Cycle Start Time: " + data.lastCycleStartTime;
+
+              // Обновляем список регионов
+              let regionNames = "Region Names: ";
+              if (data.regionNames && Array.isArray(data.regionNames)) {
+                regionNames += data.regionNames.join(", ");
+              } else {
+                regionNames += "No data";
+              }
+              regionNamesDisplay.innerHTML = regionNames;
+            } catch (e) {
+              console.error("Error parsing JSON: ", e);
+              console.log("Response text: ", request.responseText);
+            }
           }
+        };
+        request.onerror = function () {
+          console.error("Request failed");
         };
         request.send();
       }
@@ -120,6 +154,7 @@
       window.onload = function () {
         updateRelayState();
         setInterval(updateTimer, 1000); // Обновляем таймер каждую секунду
+        setInterval(updateRelayState, 5000); // Обновляем состояние реле и другую информацию каждые 5 секунд
       };
     </script>
   </body>
