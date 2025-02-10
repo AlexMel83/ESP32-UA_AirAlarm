@@ -5,17 +5,18 @@
 #include <ArduinoJson.h>
 #include "SPIFFS.h"
 #include <WiFi.h>
+#include <WebServer.h>
 #include <ESP8266FtpServer.h>
 
-WiFiStatus wifiIndicator(12);
+WiFiStatus wifiIndicator(GREEN_LED);
 
 //Define functions
 String relay_switch() {
-  digitalWrite(relay, !digitalRead(relay));
-  return String(digitalRead(relay));
+  digitalWrite(RELAY, !digitalRead(RELAY));
+  return String(digitalRead(RELAY));
 }
 String relay_status() {
-  return String(digitalRead(relay));  
+  return String(digitalRead(RELAY));  
 }
 
 WebServer http(80);
@@ -25,9 +26,35 @@ unsigned long lastRequestTime = 0; // Время последнего запро
 unsigned long alarmStartTime = 0; // Время начала тревоги
 bool alarmActive = false; // Флаг активации тревоги
 
+// Константы для цикла реле
+const byte relayCycleIterations = 3; // Кількість ітерацій циклу реле
+const unsigned long relayOnDuration = 20000;   // Тривалість ввімкнення реле (20 секунд)
+const unsigned long relayOffDuration = 5000;  // Тривалість вимкнення реле (5 секунд)
+
+// Function to control the relay cycle
+void relayCycle() {
+  for (int i = 0; i < relayCycleIterations; ++i) {
+    // Turn relay ON
+    digitalWrite(RELAY, HIGH);
+    Serial.print("Relay ON for ");
+    Serial.print(relayOnDuration / 1000);
+    Serial.println(" seconds");
+    delay(relayOnDuration);
+
+    // Turn relay OFF
+    digitalWrite(RELAY, LOW);
+    Serial.print("Relay OFF for ");
+    Serial.print(relayOffDuration / 1000);
+    Serial.println(" seconds");
+    delay(relayOffDuration);
+  }
+  Serial.println("Relay cycle complete.");
+}
+
+
 void setup() {
-  pinMode(relay, OUTPUT);
-  digitalWrite(relay, LOW);
+  pinMode(RELAY, OUTPUT);
+  digitalWrite(RELAY, LOW);
   Serial.begin(115200);
   wifiIndicator.begin(); // Ініціалізація діода статусу WiFi
 
@@ -58,8 +85,6 @@ void setup() {
 
 void loop() {
   wifiIndicator.update(); // Оновлення індикатора статусу WiFi
-	// bool isWiFiConnected = (WiFi.status() == WL_CONNECTED);
-  // bool isRelayOn = (digitalRead(relay) == HIGH);
   http.handleClient();  // Обработка входящих запросов
   ftpSrv.handleFTP();   // Обработка ftp запросов
   unsigned long currentMillis = millis(); // Оновлюємо значення currentMillis
@@ -73,15 +98,15 @@ void loop() {
     switch (alarmStatus) {
       case ALARM_ACTIVE:
         if (!alarmActive) {
-          digitalWrite(relay, HIGH);
           alarmActive = true;
           Serial.println("Alarm status: ACTIVE");
           Serial.println("Relay status: ON");
+          relayCycle(); // Start the relay cycle
         }
         break;
       case ALARM_INACTIVE:
         if (alarmActive) {
-          digitalWrite(relay, LOW);
+          digitalWrite(RELAY, LOW);
           alarmActive = false;
           Serial.println("Alarm status: INACTIVE");
           Serial.println("Relay status: OFF");
