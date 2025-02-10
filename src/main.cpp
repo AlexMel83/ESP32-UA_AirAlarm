@@ -1,7 +1,7 @@
 #include "config.h"
 #include "wifi_status.h"
 #include "routes.h"
-#include "api_client.h" // Додаємо заголовочний файл для API
+#include "api_client.h"
 #include <ArduinoJson.h>
 #include "SPIFFS.h"
 #include <WiFi.h>
@@ -20,10 +20,11 @@ String relay_status() {
 
 WebServer http(80);
 FtpServer ftpSrv; // Создаем объект ftp сервера
-
+// Переменные для работы с временем
 unsigned long lastRequestTime = 0; // Время последнего запроса к API
-unsigned long alarmStartTime = 0;
-bool alarmActive = false;
+unsigned long alarmStartTime = 0; // Время начала тревоги
+bool alarmActive = false; // Флаг активации тревоги
+unsigned long currentMillis = millis(); // Текущее время
 
 void setup() {
   pinMode(relay, OUTPUT);
@@ -48,7 +49,7 @@ void setup() {
 
    // Запуск HTTP сервера
    SPIFFS.begin(true); // Инициализация файловой системы
-   http.begin();                    
+   http.begin(); // Запуск HTTP сервера
    ftpSrv.begin("relay", "relay"); // Запуск FTP сервера
    Serial.println("Server listening");
 
@@ -57,22 +58,19 @@ void setup() {
 }
 
 void loop() {
-  wifiIndicator.update();
+  wifiIndicator.update(); // Оновлення індикатора статусу WiFi
   http.handleClient();  // Обработка входящих запросов
   ftpSrv.handleFTP();   // Обработка ftp запросов
-  unsigned long currentMillis = millis();
   if (currentMillis - lastRequestTime >= requestInterval) {
     lastRequestTime = currentMillis; // Обновляем время последнего запроса
-    
     // Викликаємо функцію для перевірки тривоги через API
-    bool alarmStatus = checkAlarmStatus();
-    
+    alarmActive = checkAlarmStatus();
     // Встановлюємо реле в залежності від статусу тривоги
-    digitalWrite(relay, alarmStatus ? HIGH : LOW);
+    digitalWrite(relay, alarmActive ? HIGH : LOW);
     Serial.print("Alarm status: ");
-    Serial.println(alarmStatus ? "ACTIVE" : "INACTIVE");
+    Serial.println(alarmActive ? "ACTIVE" : "INACTIVE");
     Serial.print("Relay status: ");
-    Serial.println(alarmStatus ? "ON" : "OFF");
+    Serial.println(alarmActive ? "ON" : "OFF");
   }
   bool isWiFiConnected = (WiFi.status() == WL_CONNECTED);
   bool isRelayOn = (digitalRead(relay) == HIGH);
