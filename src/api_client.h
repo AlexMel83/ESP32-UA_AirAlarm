@@ -3,7 +3,14 @@
 
 #include <Arduino.h>
 
+// Enum для представлення статусу тривоги та помилки
+enum AlarmStatus {
+  ALARM_ACTIVE,
+  ALARM_INACTIVE,
+  API_ERROR
+};
+
 // Функція для перевірки тривоги
-bool checkAlarmStatus();
+AlarmStatus checkAlarmStatus();
 
 #endif

@@ -24,7 +24,6 @@ FtpServer ftpSrv; // Создаем объект ftp сервера
 unsigned long lastRequestTime = 0; // Время последнего запроса к API
 unsigned long alarmStartTime = 0; // Время начала тревоги
 bool alarmActive = false; // Флаг активации тревоги
-unsigned long currentMillis = millis(); // Текущее время
 
 void setup() {
   pinMode(relay, OUTPUT);
@@ -59,19 +58,38 @@ void setup() {
 
 void loop() {
   wifiIndicator.update(); // Оновлення індикатора статусу WiFi
+	// bool isWiFiConnected = (WiFi.status() == WL_CONNECTED);
+  // bool isRelayOn = (digitalRead(relay) == HIGH);
   http.handleClient();  // Обработка входящих запросов
   ftpSrv.handleFTP();   // Обработка ftp запросов
+  unsigned long currentMillis = millis(); // Оновлюємо значення currentMillis
   if (currentMillis - lastRequestTime >= requestInterval) {
     lastRequestTime = currentMillis; // Обновляем время последнего запроса
+    
     // Викликаємо функцію для перевірки тривоги через API
-    alarmActive = checkAlarmStatus();
-    // Встановлюємо реле в залежності від статусу тривоги
-    digitalWrite(relay, alarmActive ? HIGH : LOW);
-    Serial.print("Alarm status: ");
-    Serial.println(alarmActive ? "ACTIVE" : "INACTIVE");
-    Serial.print("Relay status: ");
-    Serial.println(alarmActive ? "ON" : "OFF");
+    AlarmStatus alarmStatus = checkAlarmStatus();
+
+    // Перевіряємо статус тривоги
+    switch (alarmStatus) {
+      case ALARM_ACTIVE:
+        if (!alarmActive) {
+          digitalWrite(relay, HIGH);
+          alarmActive = true;
+          Serial.println("Alarm status: ACTIVE");
+          Serial.println("Relay status: ON");
+        }
+        break;
+      case ALARM_INACTIVE:
+        if (alarmActive) {
+          digitalWrite(relay, LOW);
+          alarmActive = false;
+          Serial.println("Alarm status: INACTIVE");
+          Serial.println("Relay status: OFF");
+        }
+        break;
+      case API_ERROR:
+        Serial.println("API Error: Could not retrieve alarm status.");
+        break;
+    }
   }
-  bool isWiFiConnected = (WiFi.status() == WL_CONNECTED);
-  bool isRelayOn = (digitalRead(relay) == HIGH);
 }
