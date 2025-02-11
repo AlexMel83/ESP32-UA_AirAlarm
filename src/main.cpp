@@ -15,9 +15,6 @@ String relay_switch() {
   digitalWrite(RELAY, !digitalRead(RELAY));
   return String(digitalRead(RELAY));
 }
-String relay_status() {
-  return String(digitalRead(RELAY));  
-}
 
 WebServer http(80);
 FtpServer ftpSrv; // Создаем объект ftp сервера

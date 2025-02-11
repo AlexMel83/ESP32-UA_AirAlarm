@@ -2,6 +2,7 @@
 #define API_CLIENT_H
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 // Enum для представлення статусу тривоги та помилки
 enum AlarmStatus {
@@ -12,5 +13,8 @@ enum AlarmStatus {
 
 // Функція для перевірки тривоги
 AlarmStatus checkAlarmStatus();
+
+// Оголошення зовнішньої змінної StaticJsonDocument
+extern StaticJsonDocument<4096> lastRegionNames;
 
 #endif

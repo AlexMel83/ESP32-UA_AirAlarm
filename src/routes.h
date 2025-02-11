@@ -11,4 +11,8 @@ void setupRoutes();
 String getContentType(String filename);
 bool handleFileRead(String path);
 
+// Оголошення зовнішніх змінних для alarmStartTime і alarmActive
+extern unsigned long alarmStartTime;
+extern bool alarmActive;
+
 #endif

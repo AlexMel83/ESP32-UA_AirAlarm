@@ -1,23 +1,43 @@
 #include "routes.h"
+#include "config.h"
 #include "SPIFFS.h"
+#include "api_client.h"
 
 // Оголошення зовнішньої змінної http
 extern WebServer http;
+extern StaticJsonDocument<4096> lastRegionNames;
+
 
 //Define functions
 String getContentType(String filename);
 bool handleFileRead(String path);
 String relay_switch();
-String relay_status();
+// String relay_status() {
+//   return String(digitalRead(RELAY));  
+// }
 
 void setupRoutes() {
   //Handle http requests
   http.on("/relay_switch", []() {
     http.send(200, "text/plain", relay_switch());
   });
+
   http.on("/relay_status", []() {
-    http.send(200, "text/plain", relay_status());
+    StaticJsonDocument<1024> doc;
+    doc["relayStatus"] = digitalRead(RELAY);
+    doc["alarmActive"] = alarmActive;
+    doc["alarmStartTime"] = alarmStartTime;
+
+    JsonArray regionNamesArray = doc.createNestedArray("regionNames");
+    for (JsonVariant value : lastRegionNames.as<JsonArray>()) {
+      regionNamesArray.add(value.as<JsonObject>());
+    }
+
+    String response;
+    serializeJson(doc, response);
+    http.send(200, "application/json", response);
   });
+
   http.onNotFound([]() {
     if (!handleFileRead(http.uri()))
       http.send(404, "text/plain", "Not found");
