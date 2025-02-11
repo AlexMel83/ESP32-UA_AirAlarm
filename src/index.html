@@ -1,7 +1,7 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>Air Alarm UA</title>
-    <!-- <link rel="stylesheet" href="styles.css" /> -->
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -77,22 +77,20 @@
         <input type="checkbox" id="relay_switch" />
         <span class="slider"></span>
       </label>
-      <div class="timer" id="timer">Time since last check: 0s</div>
-      <div id="alarmStatus">Alarm Active: false</div>
-      <div id="alarmStartTime">Alarm Start Time: 0</div>
-      <div id="lastCycleStartTime">Last Cycle Start Time: 0</div>
-      <div id="regionNames">Region Names:</div>
+      <div style="text-align: left; margin: 20px auto; max-width: 400px">
+        <div class="timer" id="timer">Time since last check: 0s</div>
+        <div id="alarmStatus">Alarm Active: false</div>
+        <div id="alarmStartTime">Alarm Start Time: 0</div>
+        <div id="regionNames">Region Names:</div>
+      </div>
     </div>
 
-    <!-- <script src="scripts.js"></script> -->
     <script>
       let relaySwitch = document.getElementById("relay_switch");
       let timerDisplay = document.getElementById("timer");
       let lastRequestTime = 0;
       let alarmStatusDisplay = document.getElementById("alarmStatus");
       let alarmStartTimeDisplay = document.getElementById("alarmStartTime");
-      let lastCycleStartTimeDisplay =
-        document.getElementById("lastCycleStartTime");
       let regionNamesDisplay = document.getElementById("regionNames");
 
       // Функция для обновления таймера
@@ -118,7 +116,7 @@
           if (request.status == 200) {
             try {
               let data = JSON.parse(request.responseText);
-              relaySwitch.checked = data.relayStatus === "1";
+              relaySwitch.checked = data.relayStatus === 1;
               lastRequestTime = Date.now(); // Обновляем время последнего запроса
               updateTimer(); // Обновляем таймер
 
@@ -126,14 +124,15 @@
               alarmStatusDisplay.innerHTML =
                 "Alarm Active: " + data.alarmActive;
               alarmStartTimeDisplay.innerHTML =
-                "Alarm Start Time: " + data.alarmStartTime;
-              lastCycleStartTimeDisplay.innerHTML =
-                "Last Cycle Start Time: " + data.lastCycleStartTime;
+                "Alarm Start Time: " +
+                new Date(data.alarmStartTime).toLocaleString();
 
               // Обновляем список регионов
-              let regionNames = "Region Names: ";
+              let regionNames = "Region Names:<br>";
               if (data.regionNames && Array.isArray(data.regionNames)) {
-                regionNames += data.regionNames.join(", ");
+                regionNames += data.regionNames
+                  .map((region) => region.regionName)
+                  .join("<br>");
               } else {
                 regionNames += "No data";
               }
