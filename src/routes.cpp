@@ -6,15 +6,15 @@
 // Оголошення зовнішньої змінної http
 extern WebServer http;
 extern StaticJsonDocument<4096> lastRegionNames;
+extern unsigned long alarmStartTime;
+extern bool alarmActive;
+extern unsigned long lastCycleStartTime;
 
 
 //Define functions
 String getContentType(String filename);
 bool handleFileRead(String path);
 String relay_switch();
-// String relay_status() {
-//   return String(digitalRead(RELAY));  
-// }
 
 void setupRoutes() {
   //Handle http requests
@@ -27,6 +27,7 @@ void setupRoutes() {
     doc["relayStatus"] = digitalRead(RELAY);
     doc["alarmActive"] = alarmActive;
     doc["alarmStartTime"] = alarmStartTime;
+    doc["lastCycleStartTime"] = lastCycleStartTime;
 
     JsonArray regionNamesArray = doc.createNestedArray("regionNames");
     for (JsonVariant value : lastRegionNames.as<JsonArray>()) {

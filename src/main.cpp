@@ -18,36 +18,21 @@ String relay_switch() {
 
 WebServer http(80);
 FtpServer ftpSrv; // Создаем объект ftp сервера
+
 // Переменные для работы с временем
 unsigned long lastRequestTime = 0; // Время последнего запроса к API
 unsigned long alarmStartTime = 0; // Время начала тревоги
 bool alarmActive = false; // Флаг активации тревоги
+unsigned long lastCycleStartTime = 0; // Время последнего запуска цикла реле
 
 // Константы для цикла реле
 const byte relayCycleIterations = 3; // Кількість ітерацій циклу реле
 const unsigned long relayOnDuration = 20000;   // Тривалість ввімкнення реле (20 секунд)
 const unsigned long relayOffDuration = 5000;  // Тривалість вимкнення реле (5 секунд)
+const unsigned long cycleInterval = 30 * 60 * 1000; // Інтервал між циклами (30 хвилин)
 
-// Function to control the relay cycle
-void relayCycle() {
-  for (int i = 0; i < relayCycleIterations; ++i) {
-    // Turn relay ON
-    digitalWrite(RELAY, HIGH);
-    Serial.print("Relay ON for ");
-    Serial.print(relayOnDuration / 1000);
-    Serial.println(" seconds");
-    delay(relayOnDuration);
-
-    // Turn relay OFF
-    digitalWrite(RELAY, LOW);
-    Serial.print("Relay OFF for ");
-    Serial.print(relayOffDuration / 1000);
-    Serial.println(" seconds");
-    delay(relayOffDuration);
-  }
-  Serial.println("Relay cycle complete.");
-}
-
+// Function prototype
+void relayCycle();
 
 void setup() {
   pinMode(RELAY, OUTPUT);
@@ -78,6 +63,10 @@ void setup() {
 
   // Настройка маршрутов
   setupRoutes();
+
+  // Инициализируем время последнего запуска цикла
+  lastCycleStartTime = 0;
+  alarmStartTime = 0;
 }
 
 void loop() {
@@ -95,10 +84,29 @@ void loop() {
     switch (alarmStatus) {
       case ALARM_ACTIVE:
         if (!alarmActive) {
+          // Якщо тривога щойно активована
           alarmActive = true;
           Serial.println("Alarm status: ACTIVE");
           Serial.println("Relay status: ON");
+          alarmStartTime = currentMillis; // Запоминаем время начала тревоги
+          Serial.print("Alarm started at: ");
+          Serial.println(alarmStartTime);
           relayCycle(); // Start the relay cycle
+          lastCycleStartTime = currentMillis; // Запоминаем время запуска цикла
+          Serial.print("First cycle started at: ");
+          Serial.println(lastCycleStartTime);
+        } else {
+          // Якщо тривога вже активна, перевіряємо, чи можна запустити цикл знову
+          if (currentMillis - lastCycleStartTime >= cycleInterval) {
+            Serial.println("Time for new cycle!");
+            relayCycle(); // Запускаем цикл
+            lastCycleStartTime = currentMillis; // Запоминаем время запуска цикла
+            Serial.print("New cycle started at: ");
+            Serial.println(lastCycleStartTime);
+          } else {
+            Serial.print("Relay cycle is on cooldown. Time left: ");
+            Serial.println((cycleInterval - (currentMillis - lastCycleStartTime)) / 1000);
+          }
         }
         break;
       case ALARM_INACTIVE:
@@ -107,6 +115,8 @@ void loop() {
           alarmActive = false;
           Serial.println("Alarm status: INACTIVE");
           Serial.println("Relay status: OFF");
+          alarmStartTime = 0;
+          lastCycleStartTime = 0;
         }
         break;
       case API_ERROR:
@@ -114,4 +124,25 @@ void loop() {
         break;
     }
   }
+}
+
+// Function to control the relay cycle
+void relayCycle() {
+  Serial.println("Starting relay cycle...");
+  for (int i = 0; i < relayCycleIterations; ++i) {
+    // Turn relay ON
+    digitalWrite(RELAY, HIGH);
+    Serial.print("Relay ON for ");
+    Serial.print(relayOnDuration / 1000);
+    Serial.println(" seconds");
+    delay(relayOnDuration);
+
+    // Turn relay OFF
+    digitalWrite(RELAY, LOW);
+    Serial.print("Relay OFF for ");
+    Serial.print(relayOffDuration / 1000);
+    Serial.println(" seconds");
+    delay(relayOffDuration);
+  }
+  Serial.println("Relay cycle complete.");
 }
