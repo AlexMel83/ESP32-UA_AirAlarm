@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include "api_client.h"
 
+// Define the StaticJsonDocument for lastRegionNames
+StaticJsonDocument<4096> lastRegionNames;
+
 // Функція для перевірки статусу тривоги через API /
 AlarmStatus checkAlarmStatus() {
   HTTPClient http;
@@ -15,8 +18,7 @@ AlarmStatus checkAlarmStatus() {
     String payload = http.getString();
     http.end();
 
-    // Використовуємо DynamicJsonDocument, оскільки розмір відповіді може бути різним
-    DynamicJsonDocument doc(4096); // Збільшено розмір буфера
+    StaticJsonDocument<4096> doc;
     DeserializationError error = deserializeJson(doc, payload);
 
     if (error) {
@@ -25,17 +27,24 @@ AlarmStatus checkAlarmStatus() {
       return API_ERROR;
     }
 
-    // Перевірка наявності regionId в активних тривогах
+    // Temporary document to hold new region data
+    StaticJsonDocument<4096> newRegionNames;
+
     bool regionActive = false;
     JsonArray regions = doc.as<JsonArray>();
     for (JsonObject region : regions) {
       if (region["regionId"].as<String>() == API_REGION_ID) {
         if (region["activeAlerts"].size() > 0) {
           regionActive = true;
-          break;
         }
       }
+      JsonObject newRegion = newRegionNames.createNestedObject();
+      newRegion["regionId"] = region["regionId"].as<String>();
+      newRegion["regionName"] = region["regionName"].as<String>();
     }
+
+    // Update the global variable with new data
+    lastRegionNames = newRegionNames;
 
     // Виводимо масив в Serial Monitor
     serializeJson(doc, Serial);

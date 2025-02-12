@@ -1,21 +1,27 @@
+<!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
     <title>Air Alarm UA</title>
-    <!-- <link rel="stylesheet" href="styles.css" /> -->
     <style>
       body {
         font-family: Arial, sans-serif;
         background-color: #f0f0f0;
         text-align: center;
-        height: 100vh;
         margin: 0;
         padding: 0;
+        height: 100vh;
       }
-
       .container {
-        margin-top: 50px;
+        margin-top: 20px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
       }
-
       .switch {
         position: relative;
         display: inline-block;
@@ -61,100 +67,137 @@
         transform: translateX(26px);
       }
 
-      .timer {
-        margin-top: 20px;
+      .alarm-active {
+        background-color: #ffcccc;
+        color: #d90000;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .regions-block,
+      .communities-block,
+      .special-blocks {
+        text-align: left;
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #e0e0e0;
+      }
+      .region-title {
         font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .region-item {
+        padding: 5px;
+        border-bottom: 1px solid #ddd;
+      }
+      .timer {
+        margin-top: 10px;
+        font-size: 16px;
         color: #333;
       }
     </style>
   </head>
   <body>
-    <h1>MEGATEX LLC</h1>
-    <h2>Air Alerts in Starokostyantyniv UA</h2>
+    <h1>ТОВ МЕГАТЕКС</h1>
+    <h2>Додаток повітряна тривога в Старокостянтинові UA</h2>
 
     <div class="container">
       <label class="switch">
         <input type="checkbox" id="relay_switch" />
         <span class="slider"></span>
       </label>
-      <div class="timer" id="timer">Time since last check: 0s</div>
-      <div id="alarmStatus">Alarm Active: false</div>
-      <div id="alarmStartTime">Alarm Start Time: 0</div>
-      <div id="lastCycleStartTime">Last Cycle Start Time: 0</div>
-      <div id="regionNames">Region Names:</div>
+      <div class="timer" id="timer">час обміну інформації з пристроєм: 0s</div>
+      <div id="alarmBlock"></div>
+      <div class="regions-block" id="regionsBlock"></div>
+      <div class="communities-block" id="communitiesBlock"></div>
+      <div
+        class="special-blocks"
+        id="specialBlocks"
+        style="display: none"
+      ></div>
     </div>
 
-    <!-- <script src="scripts.js"></script> -->
     <script>
       let relaySwitch = document.getElementById("relay_switch");
       let timerDisplay = document.getElementById("timer");
-      let lastRequestTime = 0;
-      let alarmStatusDisplay = document.getElementById("alarmStatus");
-      let alarmStartTimeDisplay = document.getElementById("alarmStartTime");
-      let lastCycleStartTimeDisplay =
-        document.getElementById("lastCycleStartTime");
-      let regionNamesDisplay = document.getElementById("regionNames");
+      let specialBlocks = document.getElementById("specialBlocks");
+      let alarmBlock = document.getElementById("alarmBlock");
+      let regionsBlock = document.getElementById("regionsBlock");
+      let communitiesBlock = document.getElementById("communitiesBlock");
 
-      // Функция для обновления таймера
       function updateTimer() {
-        let currentMillis = Date.now();
-        let elapsedTime = Math.floor((currentMillis - lastRequestTime) / 1000);
+        let elapsedTime = Math.floor((Date.now() - lastRequestTime) / 1000);
         timerDisplay.innerHTML = "Time since last check: " + elapsedTime + "s";
       }
 
-      // Обработчик для переключателя
       relaySwitch.addEventListener("change", function () {
         let relayState = relaySwitch.checked ? "1" : "0";
-        var request = new XMLHttpRequest();
-        request.open("GET", "/relay_switch?state=" + relayState, true); // передаем состояние переключателя
-        request.send();
+        fetch("/relay_switch?state=" + relayState);
       });
-
-      // Функция для обновления состояния переключателя и другой информации
       function updateRelayState() {
-        var request = new XMLHttpRequest();
-        request.open("GET", "/relay_status", true);
-        request.onload = function () {
-          if (request.status == 200) {
-            try {
-              let data = JSON.parse(request.responseText);
-              relaySwitch.checked = data.relayStatus === "1";
-              lastRequestTime = Date.now(); // Обновляем время последнего запроса
-              updateTimer(); // Обновляем таймер
+        fetch("/relay_status")
+          .then((response) => response.json())
+          .then((data) => {
+            relaySwitch.checked = data.relayStatus === 1;
+            lastRequestTime = Date.now();
+            updateTimer();
 
-              // Обновляем статус тревоги
-              alarmStatusDisplay.innerHTML =
-                "Alarm Active: " + data.alarmActive;
-              alarmStartTimeDisplay.innerHTML =
-                "Alarm Start Time: " + data.alarmStartTime;
-              lastCycleStartTimeDisplay.innerHTML =
-                "Last Cycle Start Time: " + data.lastCycleStartTime;
-
-              // Обновляем список регионов
-              let regionNames = "Region Names: ";
-              if (data.regionNames && Array.isArray(data.regionNames)) {
-                regionNames += data.regionNames.join(", ");
-              } else {
-                regionNames += "No data";
-              }
-              regionNamesDisplay.innerHTML = regionNames;
-            } catch (e) {
-              console.error("Error parsing JSON: ", e);
-              console.log("Response text: ", request.responseText);
+            if (data.alarmActive) {
+              alarmBlock.innerHTML = `
+                <div class='alarm-active' style='background-color: #ffcccc; color: #d90000;'>
+                  Тривога в Старокостянтинові активна! Почалась в: ${new Date(
+                    data.alarmStartTime * 1000
+                  ).toLocaleString()}
+                </div>
+              `;
+            } else {
+              alarmBlock.innerHTML = `
+                <div class='alarm-safe' style='background-color: #ccffcc; color: #006600; padding: 10px; border-radius: 5px; font-weight: bold;'>
+                  Тривоги в Старокостянтинові немає
+                </div>
+              `;
             }
-          }
-        };
-        request.onerror = function () {
-          console.error("Request failed");
-        };
-        request.send();
+
+            let regions = "<div class='region-title'>Області з тривогою:</div>";
+            let communities =
+              "<div class='region-title'>Громади з тривогою:</div>";
+            let special = "";
+            let specialIds = ["1396", "134", "3"];
+
+            data.regionNames.forEach((region) => {
+              if (specialIds.includes(region.regionId)) {
+                special += `<div class='region-item'><b>${region.regionName}</b></div>`;
+              } else if (
+                region.regionId.length < 4 ||
+                region.regionId === "9999"
+              ) {
+                regions += `<div class='region-item'>${region.regionName}</div>`;
+              } else {
+                communities += `<div class='region-item'>${region.regionName}</div>`;
+              }
+            });
+
+            regionsBlock.innerHTML = regions;
+            communitiesBlock.innerHTML = communities;
+
+            if (special) {
+              specialBlocks.style.display = "block";
+              specialBlocks.innerHTML = `<div class='region-title'>Особливі території:</div>${special}`;
+            } else {
+              specialBlocks.style.display = "none";
+            }
+          })
+          .catch((error) =>
+            console.error("Error fetching relay status:", error)
+          );
       }
 
-      // Инициализируем состояние реле при загрузке страницы
       window.onload = function () {
         updateRelayState();
-        setInterval(updateTimer, 1000); // Обновляем таймер каждую секунду
-        setInterval(updateRelayState, 5000); // Обновляем состояние реле и другую информацию каждые 5 секунд
+        setInterval(updateTimer, 1000);
+        setInterval(updateRelayState, 5000);
       };
     </script>
   </body>

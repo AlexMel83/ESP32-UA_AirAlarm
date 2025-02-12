@@ -7,20 +7,31 @@
 // Змінні середовища
 #define WIFI_SSID "SSID"
 #define WIFI_PASSWORD "WIFI_PASSWORD"
-#define API_URL "https://api.ukrainealarm.com/api/v3/alerts/1396" // 1396 - Ukraine Starokostyantyniv
 #define API_KEY "YOUR_API_KEY"
+#define API_URL_ALLALERTS "https://api.ukrainealarm.com/api/v3/alerts"
+#define API_REGION_ID "YOUR_REGION_ID"
+#define SERIAL_BAUD 115200
 
 // Настройки IP адреса
-extern IPAddress local_ip;
-extern IPAddress gateway;
-extern IPAddress subnet;
-extern IPAddress dns;
+const uint8_t local_ip[] = {192, 168, 31, 111};
+const uint8_t gateway[] = {192, 168, 31, 1};
+const uint8_t subnet[] = {255, 255, 255, 0};
+const uint8_t dns[] = {8, 8, 8, 8};
+
+extern IPAddress localIPAddress;
+extern IPAddress gatewayIPAddress;
+extern IPAddress subnetIPAddress;
+extern IPAddress dnsIPAddress;
+//define PIN_LED
+#define GREEN_LED 12
+#define RELAY 2
 
 // Другие конфигурационные параметры
 typedef uint8_t byte;
 const byte tries = 10;  // Попыток подключения к точке доступа
-const byte relay = 2; // Пин для управления реле
 const unsigned long alarmDuration = 300000; // 5 минут
 const unsigned long requestInterval = 30000; // Интервал запроса к API
+
+String relay_switch();
 
 #endif // CONFIG_H
