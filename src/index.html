@@ -125,7 +125,7 @@
                 "Alarm Active: " + data.alarmActive;
               alarmStartTimeDisplay.innerHTML =
                 "Alarm Start Time: " +
-                new Date(data.alarmStartTime).toLocaleString();
+                new Date(data.alarmStartTime * 1000).toLocaleString();
 
               // Обновляем список регионов
               let regionNames = "Region Names:<br>";

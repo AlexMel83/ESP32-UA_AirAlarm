@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESP8266FtpServer.h>
+#include <time.h>
 
 WiFiStatus wifiIndicator(GREEN_LED);
 
@@ -21,7 +22,7 @@ FtpServer ftpSrv; // Создаем объект ftp сервера
 
 // Переменные для работы с временем
 unsigned long lastRequestTime = 0; // Время последнего запроса к API
-unsigned long alarmStartTime = 0; // Время начала тревоги
+time_t alarmStartTime = 0; // Время начала тревоги
 bool alarmActive = false; // Флаг активации тревоги
 unsigned long lastCycleStartTime = 0; // Время последнего запуска цикла реле
 
@@ -54,6 +55,16 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  // Initialize NTP
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println("Waiting for NTP time sync...");
+  while (time(nullptr) < 100000) { // Wait until the time is valid
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("NTP time synced");
 
    // Запуск HTTP сервера
    SPIFFS.begin(true); // Инициализация файловой системы
@@ -88,7 +99,7 @@ void loop() {
           alarmActive = true;
           Serial.println("Alarm status: ACTIVE");
           Serial.println("Relay status: ON");
-          alarmStartTime = currentMillis; // Запоминаем время начала тревоги
+          alarmStartTime = time(nullptr); // Запоминаем время начала тревоги
           Serial.print("Alarm started at: ");
           Serial.println(alarmStartTime);
           relayCycle(); // Start the relay cycle

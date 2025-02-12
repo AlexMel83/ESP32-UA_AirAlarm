@@ -6,7 +6,7 @@
 // Оголошення зовнішньої змінної http
 extern WebServer http;
 extern StaticJsonDocument<4096> lastRegionNames;
-extern unsigned long alarmStartTime;
+extern time_t alarmStartTime;
 extern bool alarmActive;
 extern unsigned long lastCycleStartTime;
 
