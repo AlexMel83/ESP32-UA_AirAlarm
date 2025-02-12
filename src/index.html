@@ -145,11 +145,19 @@
             updateTimer();
 
             if (data.alarmActive) {
-              alarmBlock.innerHTML = `<div class='alarm-active'>Тривога активна! Почалась в: ${new Date(
-                data.alarmStartTime * 1000
-              ).toLocaleString()}</div>`;
+              alarmBlock.innerHTML = `
+                <div class='alarm-active' style='background-color: #ffcccc; color: #d90000;'>
+                  Тривога в Старокостянтинові активна! Почалась в: ${new Date(
+                    data.alarmStartTime * 1000
+                  ).toLocaleString()}
+                </div>
+              `;
             } else {
-              alarmBlock.innerHTML = "";
+              alarmBlock.innerHTML = `
+                <div class='alarm-safe' style='background-color: #ccffcc; color: #006600; padding: 10px; border-radius: 5px; font-weight: bold;'>
+                  Тривоги в Старокостянтинові немає
+                </div>
+              `;
             }
 
             let regions = "<div class='region-title'>Області з тривогою:</div>";
