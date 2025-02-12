@@ -38,7 +38,7 @@ void relayCycle();
 void setup() {
   pinMode(RELAY, OUTPUT);
   digitalWrite(RELAY, LOW);
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
   wifiIndicator.begin(); // Ініціалізація діода статусу WiFi
 
   WiFi.config(local_ip, gateway, subnet, dns);

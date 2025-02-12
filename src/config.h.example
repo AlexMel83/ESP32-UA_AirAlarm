@@ -10,6 +10,7 @@
 #define API_KEY ""
 #define API_URL_ALLALERTS "https://api.ukrainealarm.com/api/v3/alerts"
 #define API_REGION_ID "YOUR_REGION_ID"
+#define SERIAL_BAUD 115200
 
 // Настройки IP адреса
 const uint8_t local_ip[] = {192, 168, 31, 111};
