@@ -13,7 +13,7 @@
         height: 100vh;
       }
       .container {
-        margin-top: 20px;
+        margin-top: 5px;
         max-width: 600px;
         margin-left: auto;
         margin-right: auto;
@@ -78,7 +78,7 @@
       .communities-block,
       .special-blocks {
         text-align: left;
-        margin-top: 15px;
+        margin-top: 5px;
         padding: 10px 5px;
         border-radius: 8px;
         background: #e0e0e0;
@@ -100,16 +100,30 @@
     </style>
   </head>
   <body>
-    <h1>ТОВ МЕГАТЕКС</h1>
-    <h2>Додаток повітряна тривога в Старокостянтинові UA</h2>
+    <!-- <h1>ТОВ МЕГАТЕКС</h1> -->
+    <div style="font-weight: 700; margin-top: 10px; font-size: 24px">
+      Додаток повітряна тривога в Старокостянтинові
+    </div>
 
     <div class="container">
-      <label class="switch">
-        <input type="checkbox" id="relay_switch" />
-        <span class="slider"></span>
-      </label>
-      <div class="timer" id="timer">час обміну інформації з пристроєм: 0s</div>
+      <div
+        style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 2px;
+        "
+      >
+        Керування реле:
+        <label class="switch">
+          <input type="checkbox" id="relay_switch" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="timer" id="timer">час обміну з ESP32: 0s</div>
       <div id="alarmBlock"></div>
+      <div id="khmelnitskyAlarmBlock"></div>
       <div class="regions-block" id="regionsBlock"></div>
       <div class="communities-block" id="communitiesBlock"></div>
       <div
@@ -124,12 +138,15 @@
       let timerDisplay = document.getElementById("timer");
       let specialBlocks = document.getElementById("specialBlocks");
       let alarmBlock = document.getElementById("alarmBlock");
+      let khmelnitskyAlarmBlock = document.getElementById(
+        "khmelnitskyAlarmBlock"
+      );
       let regionsBlock = document.getElementById("regionsBlock");
       let communitiesBlock = document.getElementById("communitiesBlock");
 
       function updateTimer() {
         let elapsedTime = Math.floor((Date.now() - lastRequestTime) / 1000);
-        timerDisplay.innerHTML = "Time since last check: " + elapsedTime + "s";
+        timerDisplay.innerHTML = "Час обміну з ESP32: " + elapsedTime + "s";
       }
 
       relaySwitch.addEventListener("change", function () {
@@ -146,10 +163,18 @@
             updateTimer();
 
             alarmBlock.innerHTML = data.alarmActive
-              ? `<div class='alarm-active' style='background-color: #ffcccc; color: #d90000;'>Тривога в Старокостянтинові активна! Почалась в: ${new Date(
+              ? `<div class='alarm-active' style='margin-top: 5px; background-color: #ffcccc; color: #d90000;'>Тривога в Старокостянтинові активна! Почалась в: ${new Date(
                   data.alarmStartTime * 1000
                 ).toLocaleString()}</div>`
-              : `<div class='alarm-safe' style='background-color: #ccffcc; color: #006600; padding: 10px; border-radius: 5px; font-weight: bold;'>Тривоги в Старокостянтинові немає</div>`;
+              : `<div class='alarm-safe' style='margin-top: 5px; background-color: #ccffcc; color: #006600; padding: 10px; border-radius: 5px; font-weight: bold;'>Тривоги в Старокостянтинові немає</div>`;
+
+            let khmelnitskyAlarmActive = data.regionNames.some((region) =>
+              region.regionName.includes("Хмельницька область")
+            );
+
+            khmelnitskyAlarmBlock.innerHTML = khmelnitskyAlarmActive
+              ? `<div class='alarm-active' style='margin-top: 5px; background-color: #ffcccc; color: #d90000;'>Тривога в Хмельницькій області активна!</div>`
+              : `<div class='alarm-safe' style='margin-top: 5px; background-color: #ccffcc; color: #006600; padding: 10px; border-radius: 5px; font-weight: bold;'>Тривоги в Хмельницькій області немає</div>`;
 
             let regions = "<div class='region-title'>Області з тривогою:</div>";
             let communities =
