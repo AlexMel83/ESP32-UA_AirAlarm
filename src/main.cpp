@@ -11,149 +11,176 @@
 
 WiFiStatus wifiIndicator(GREEN_LED);
 
-//Define functions
 String relay_switch() {
-  digitalWrite(RELAY, !digitalRead(RELAY));
-  return String(digitalRead(RELAY));
+  bool relayState = !digitalRead(RELAY);
+  digitalWrite(RELAY, relayState);
+  digitalWrite(RED_LED, relayState);
+  return String(relayState);
 }
 
 WebServer http(80);
-FtpServer ftpSrv; // Создаем объект ftp сервера
+FtpServer ftpSrv;
 
-// Переменные для работы с временем
-unsigned long lastRequestTime = 0; // Время последнего запроса к API
-time_t alarmStartTime = 0; // Время начала тревоги
-bool alarmActive = false; // Флаг активации тревоги
-unsigned long lastCycleStartTime = 0; // Время последнего запуска цикла реле
+unsigned long lastRequestTime = 0;
+time_t alarmStartTime = 0;
+bool alarmActive = false;
+time_t lastCycleStartTime = 0;
+bool waitingMessagePrinted = false; // Флаг для однократного вывода сообщения
 
-// Константы для цикла реле
-const byte relayCycleIterations = 3; // Кількість ітерацій циклу реле
-const unsigned long relayOnDuration = 20000;   // Тривалість ввімкнення реле (20 секунд)
-const unsigned long relayOffDuration = 5000;  // Тривалість вимкнення реле (5 секунд)
-const unsigned long cycleInterval = 30 * 60 * 1000; // Інтервал між циклами (30 хвилин)
+const byte relayCycleIterations = 3;
+const time_t relayOnDuration = 20; // 20 секунд
+const time_t relayOffDuration = 5; // 5 секунд
+const time_t cycleInterval = 30 * 60; // 30 минут в секундах
 
-// Function prototype
 void relayCycle();
 
 void setup() {
   pinMode(RELAY, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
   digitalWrite(RELAY, LOW);
+  digitalWrite(RED_LED, LOW);
   Serial.begin(SERIAL_BAUD);
-  wifiIndicator.begin(); // Ініціалізація діода статусу WiFi
+  wifiIndicator.begin();
 
   WiFi.config(local_ip, gateway, subnet, dns);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    
-  // Даем время на подключение
-  unsigned long startMillis = millis();
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  Serial.println("\nWiFi connected! IP: " + WiFi.localIP());
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  // Initialize NTP
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
   Serial.println("Waiting for NTP time sync...");
-  while (time(nullptr) < 100000) { // Wait until the time is valid
+  while (time(nullptr) < 100000) {
     delay(1000);
     Serial.print(".");
   }
-  Serial.println("");
-  Serial.println("NTP time synced");
+  Serial.println("\nNTP time synced");
 
-   // Запуск HTTP сервера
-   SPIFFS.begin(true); // Инициализация файловой системы
-   http.begin(); // Запуск HTTP сервера
-   ftpSrv.begin("relay", "relay"); // Запуск FTP сервера
-   Serial.println("Server listening");
+  SPIFFS.begin(true);
+  http.begin();
+  ftpSrv.begin("relay", "relay");
+  Serial.println("Server listening");
 
-  // Настройка маршрутов
   setupRoutes();
-
-  // Инициализируем время последнего запуска цикла
-  lastCycleStartTime = 0;
-  alarmStartTime = 0;
 }
 
 void loop() {
-  wifiIndicator.update(); // Оновлення індикатора статусу WiFi
-  http.handleClient();  // Обработка входящих запросов
-  ftpSrv.handleFTP();   // Обработка ftp запросов
-  unsigned long currentMillis = millis(); // Оновлюємо значення currentMillis
+  wifiIndicator.update();
+  http.handleClient();
+  ftpSrv.handleFTP();
+
+  unsigned long currentMillis = millis();
+
   if (currentMillis - lastRequestTime >= requestInterval) {
-    lastRequestTime = currentMillis; // Обновляем время последнего запроса
-    
-    // Викликаємо функцію для перевірки тривоги через API
+    lastRequestTime = currentMillis;
+
     AlarmStatus alarmStatus = checkAlarmStatus();
 
-    // Перевіряємо статус тривоги
     switch (alarmStatus) {
       case ALARM_ACTIVE:
         if (!alarmActive) {
-          // Якщо тривога щойно активована
           alarmActive = true;
           Serial.println("Alarm status: ACTIVE");
-          Serial.println("Relay status: ON");
-          alarmStartTime = time(nullptr); // Запоминаем время начала тревоги
-          Serial.print("Alarm started at: ");
-          Serial.println(alarmStartTime);
-          relayCycle(); // Start the relay cycle
-          lastCycleStartTime = currentMillis; // Запоминаем время запуска цикла
-          Serial.print("First cycle started at: ");
-          Serial.println(lastCycleStartTime);
-        } else {
-          // Якщо тривога вже активна, перевіряємо, чи можна запустити цикл знову
-          if (currentMillis - lastCycleStartTime >= cycleInterval) {
-            Serial.println("Time for new cycle!");
-            relayCycle(); // Запускаем цикл
-            lastCycleStartTime = currentMillis; // Запоминаем время запуска цикла
-            Serial.print("New cycle started at: ");
-            Serial.println(lastCycleStartTime);
-          } else {
-            Serial.print("Relay cycle is on cooldown. Time left: ");
-            Serial.println((cycleInterval - (currentMillis - lastCycleStartTime)) / 1000);
-          }
+          alarmStartTime = time(nullptr);
         }
         break;
+
       case ALARM_INACTIVE:
         if (alarmActive) {
           digitalWrite(RELAY, LOW);
+          digitalWrite(RED_LED, LOW);
           alarmActive = false;
           Serial.println("Alarm status: INACTIVE");
-          Serial.println("Relay status: OFF");
-          alarmStartTime = 0;
-          lastCycleStartTime = 0;
         }
         break;
+
       case API_ERROR:
         Serial.println("API Error: Could not retrieve alarm status.");
         break;
     }
   }
+
+  if (alarmActive) {
+    relayCycle();
+  }
 }
 
-// Function to control the relay cycle
 void relayCycle() {
-  Serial.println("Starting relay cycle...");
-  for (int i = 0; i < relayCycleIterations; ++i) {
-    // Turn relay ON
-    digitalWrite(RELAY, HIGH);
-    Serial.print("Relay ON for ");
-    Serial.print(relayOnDuration / 1000);
-    Serial.println(" seconds");
-    delay(relayOnDuration);
+  static int cycleStep = 0;
+  static time_t lastChangeTime = 0;
+  static bool relayState = false;
+  static bool cycleRunning = false;
 
-    // Turn relay OFF
+  time_t currentTime = time(nullptr);
+
+  // Завершение цикла после всех шагов
+  if (cycleRunning && cycleStep >= relayCycleIterations * 2) { // После шага 5
     digitalWrite(RELAY, LOW);
-    Serial.print("Relay OFF for ");
-    Serial.print(relayOffDuration / 1000);
-    Serial.println(" seconds");
-    delay(relayOffDuration);
+    digitalWrite(RED_LED, LOW);
+    Serial.println("Relay cycle completed. Waiting 30 minutes...");
+    cycleRunning = false;
+    lastCycleStartTime = currentTime;
+    cycleStep = 0;
+    waitingMessagePrinted = false; // Сбрасываем флаг
+    return;
   }
-  Serial.println("Relay cycle complete.");
+
+  // Проверка интервала тишины только если цикл завершён
+  if (!cycleRunning && (currentTime - lastCycleStartTime < cycleInterval)) {
+    if (!waitingMessagePrinted) {
+      Serial.println("Waiting for cycle interval...");
+      waitingMessagePrinted = true; // Устанавливаем флаг
+    }
+    return;
+  }
+
+  // Запуск нового цикла
+  if (!cycleRunning && alarmActive) {
+    Serial.println("Starting new relay cycle...");
+    cycleRunning = true;
+    cycleStep = 0;
+    relayState = true;
+    digitalWrite(RELAY, relayState);
+    digitalWrite(RED_LED, relayState);
+    lastChangeTime = currentTime;
+    Serial.print("Relay ON (Step ");
+    Serial.print(cycleStep);
+    Serial.println(")");
+    return;
+  }
+
+  // Выполнение шагов цикла (0..5)
+  if (cycleRunning && cycleStep < relayCycleIterations * 2) { // До 5 включительно
+    time_t interval = relayState ? relayOnDuration : relayOffDuration;
+    time_t timeDiff = currentTime - lastChangeTime;
+
+    if (timeDiff >= interval) {
+      relayState = !relayState;
+      digitalWrite(RELAY, relayState);
+      digitalWrite(RED_LED, relayState);
+      cycleStep++;
+
+      Serial.print("Relay ");
+      Serial.print(relayState ? "ON" : "OFF");
+      Serial.print(" (Step ");
+      Serial.print(cycleStep);
+      Serial.println(")");
+
+      // Принудительное завершение после шага 5
+      if (cycleStep >= relayCycleIterations * 2) {
+        digitalWrite(RELAY, LOW);
+        digitalWrite(RED_LED, LOW);
+        Serial.println("Relay cycle completed. Waiting 30 minutes...");
+        cycleRunning = false;
+        lastCycleStartTime = currentTime;
+        cycleStep = 0;
+        waitingMessagePrinted = false;
+      }
+
+      lastChangeTime = currentTime;
+    }
+  }
 }
