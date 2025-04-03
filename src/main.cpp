@@ -27,8 +27,8 @@ bool alarmActive = false;
 time_t lastCycleStartTime = 0;
 bool waitingMessagePrinted = false; // Флаг для однократного вывода сообщения
 
-const byte relayCycleIterations = 3;
-const time_t relayOnDuration = 20; // 20 секунд
+const byte relayCycleIterations = 4;
+const time_t relayOnDuration = 15; // 15 секунд
 const time_t relayOffDuration = 5; // 5 секунд
 const time_t cycleInterval = 30 * 60; // 30 минут в секундах
 
